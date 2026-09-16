@@ -17,7 +17,7 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write # npm provenance
+  id-token: write # the publish credential itself, via trusted publishing
 
 jobs:
   publish:
@@ -27,10 +27,18 @@ jobs:
     environment: npm
     steps:
       - uses: actions/checkout@v4
+      # Trusted publishing needs Node >= 22.14.0 and npm >= 11.5.1, and the
+      # npm that ships with the runner is older. No registry-url: it writes an
+      # .npmrc expecting NODE_AUTH_TOKEN, and an empty one there gets in the
+      # way of the OIDC exchange.
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: https://registry.npmjs.org
+
+      - name: npm new enough to trust-publish
+        run: |
+          npm install -g npm@latest
+          npm --version
 
       - run: npm install
       - run: npm run typecheck
@@ -54,10 +62,12 @@ jobs:
             echo "::error::$name@$pkg is already on npm — bump the version"; exit 1
           fi
 
+      # No token: the id-token permission above is the credential. npm
+      # exchanges the OIDC token for a short-lived one, and generates the
+      # provenance attestation on its own — passing --provenance is neither
+      # needed nor wanted here.
       - name: Publish
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Summary
         if: always()
