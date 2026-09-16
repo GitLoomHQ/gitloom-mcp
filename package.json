@@ -1,0 +1,48 @@
+{
+  "name": "@gitloomhq/mcp",
+  "version": "0.2.0",
+  "description": "MCP server for GitLoom \u2014 memory for any MCP-speaking agent",
+  "license": "MIT",
+  "homepage": "https://gitloom.cloud",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/GitLoomHQ/gitloom-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/GitLoomHQ/gitloom-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "memory",
+    "agents",
+    "llm",
+    "model-context-protocol"
+  ],
+  "type": "module",
+  "bin": {
+    "gitloom-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@gitloomhq/sdk": "^0.9.0",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "~5.9.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

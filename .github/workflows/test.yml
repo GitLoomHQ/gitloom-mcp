@@ -1,0 +1,51 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # `npm install`, not `npm ci`: no lockfile is tracked, because the
+      # dependency that matters is @gitloomhq/sdk and this server should pick
+      # up its published minor rather than pin one.
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm run build
+
+      # The bin is what `npx @gitloomhq/mcp` executes, so it has to be a real
+      # executable with a shebang — tsup only adds one because the build script
+      # asks it to, and losing that turns the package into a silent no-op.
+      - name: Built binary is executable
+        run: |
+          head -1 dist/index.js | grep -q '^#!/usr/bin/env node' \
+            || { echo "::error::dist/index.js lost its shebang"; exit 1; }
+
+      # Without a key the server must refuse on stderr and exit non-zero.
+      # stdout carries protocol frames, so a stray line there corrupts the
+      # stream and a host reports it as the server dying.
+      - name: Refuses to start without a key
+        run: |
+          set +e
+          out=$(GITLOOM_API_KEY= node dist/index.js 2>/tmp/err.txt); code=$?
+          set -e
+          [ "$code" -ne 0 ] || { echo "::error::started without GITLOOM_API_KEY"; exit 1; }
+          [ -z "$out" ] || { echo "::error::wrote to stdout, which carries protocol frames: $out"; exit 1; }
+          grep -q "GITLOOM_API_KEY" /tmp/err.txt \
+            || { echo "::error::did not explain the missing key on stderr"; cat /tmp/err.txt; exit 1; }
