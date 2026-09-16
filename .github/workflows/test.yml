@@ -37,6 +37,15 @@ jobs:
           head -1 dist/index.js | grep -q '^#!/usr/bin/env node' \
             || { echo "::error::dist/index.js lost its shebang"; exit 1; }
 
+      # The version a host displays comes from the bundle, so a build that
+      # dropped the substitution would report the wrong server version with
+      # nothing else failing.
+      - name: Reports the package version
+        run: |
+          ver=$(node -p "require('./package.json').version")
+          grep -q "\"$ver\"" dist/index.js \
+            || { echo "::error::dist/index.js does not carry version $ver"; exit 1; }
+
       # Without a key the server must refuse on stderr and exit non-zero.
       # stdout carries protocol frames, so a stray line there corrupts the
       # stream and a host reports it as the server dying.

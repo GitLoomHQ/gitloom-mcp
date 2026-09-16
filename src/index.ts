@@ -20,7 +20,9 @@ import {
 } from '@modelcontextprotocol/sdk/types.js'
 import { Gitloom, mcpTools, runTool } from '@gitloomhq/sdk'
 
-const VERSION = '0.1.0'
+// Substituted at build time from package.json; a host reports this when it
+// names the server, and a hand-kept copy drifts silently.
+declare const __VERSION__: string
 
 function fail(message: string): never {
   // stderr, never stdout: stdout carries protocol frames and a stray line
@@ -46,13 +48,14 @@ const memory = new Gitloom({
 })
 
 const server = new Server(
-  { name: 'gitloom', version: VERSION },
+  { name: 'gitloom', version: __VERSION__ },
   {
     capabilities: { tools: {} },
     instructions:
       'GitLoom is this user\'s long-term memory. Call recall_memory before answering ' +
       'anything that depends on their history, preferences or past decisions. Call ' +
-      'save_memory when they state a durable fact about themselves.',
+      'find_skill before carrying out a task they may have taught a procedure for. ' +
+      'Call save_memory when they state a durable fact about themselves.',
   },
 )
 
