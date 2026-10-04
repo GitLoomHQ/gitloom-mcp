@@ -22,9 +22,10 @@ jobs:
         with:
           node-version: '22'
 
-      # `npm install`, not `npm ci`: no lockfile is tracked, because the
-      # dependency that matters is @gitloomhq/sdk and this server should pick
-      # up its published minor rather than pin one.
+      # `npm install`, not `npm ci`: no lockfile is tracked. package.json pins
+      # @gitloomhq/sdk exactly, because this release is tested against that SDK
+      # and no other. Release the SDK first, then this; until the pinned
+      # version is on npm, this install fails.
       - run: npm install
       - run: npm run typecheck
       - run: npm run build
@@ -46,15 +47,28 @@ jobs:
           grep -q "\"$ver\"" dist/index.js \
             || { echo "::error::dist/index.js does not carry version $ver"; exit 1; }
 
-      # Without a key the server must refuse on stderr and exit non-zero.
-      # stdout carries protocol frames, so a stray line there corrupts the
-      # stream and a host reports it as the server dying.
-      - name: Refuses to start without a key
+      # A missing, blank or malformed key must be refused on stderr with the
+      # setup help and a non-zero exit, never a stack trace. stdout carries
+      # protocol frames, so a stray line there corrupts the stream and a host
+      # reports it as the server dying.
+      - name: Refuses to start without a usable key
         run: |
-          set +e
-          out=$(GITLOOM_API_KEY= node dist/index.js 2>/tmp/err.txt); code=$?
-          set -e
-          [ "$code" -ne 0 ] || { echo "::error::started without GITLOOM_API_KEY"; exit 1; }
-          [ -z "$out" ] || { echo "::error::wrote to stdout, which carries protocol frames: $out"; exit 1; }
-          grep -q "GITLOOM_API_KEY" /tmp/err.txt \
-            || { echo "::error::did not explain the missing key on stderr"; cat /tmp/err.txt; exit 1; }
+          err=$(mktemp)
+          for k in unset blank control; do
+            case $k in
+              unset)   run=(env -u GITLOOM_API_KEY) ;;
+              blank)   run=(env GITLOOM_API_KEY=' ') ;;
+              control) run=(env GITLOOM_API_KEY=$'a\r\nb') ;;
+            esac
+            set +e
+            out=$("${run[@]}" node dist/index.js </dev/null 2>"$err"); code=$?
+            set -e
+            [ "$code" -ne 0 ] || { echo "::error::$k key: the server started"; exit 1; }
+            [ -z "$out" ] || { echo "::error::$k key: wrote to stdout, which carries protocol frames: $out"; exit 1; }
+            if grep -q '^    at ' "$err"; then
+              echo "::error::$k key: printed a stack trace"; cat "$err"; exit 1
+            fi
+            grep -qF 'Create a key at https://app.gitloom.cloud/' "$err" \
+              || { echo "::error::$k key: no setup help on stderr"; cat "$err"; exit 1; }
+            echo "$k key: refused with exit $code"
+          done

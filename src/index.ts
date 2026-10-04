@@ -46,7 +46,11 @@ try {
     namespace: process.env.GITLOOM_NAMESPACE,
   })
 } catch (err) {
-  if (err instanceof GitloomError) fail(`${err.message}\n\n${SETUP_HELP}`)
+  if (err instanceof GitloomError) {
+    const reason =
+      err.code === 'missing_api_key' ? 'GITLOOM_API_KEY is not set (or is blank).' : err.message
+    fail(`${reason}\n\n${SETUP_HELP}`)
+  }
   throw err
 }
 
