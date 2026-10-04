@@ -18,7 +18,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { Gitloom, mcpTools, runToolResult } from '@gitloomhq/sdk'
+import { Gitloom, GitloomError, mcpTools, runToolResult } from '@gitloomhq/sdk'
 
 // Substituted at build time from package.json; a host reports this when it
 // names the server, and a hand-kept copy drifts silently.
@@ -31,21 +31,24 @@ function fail(message: string): never {
   process.exit(1)
 }
 
-const apiKey = process.env.GITLOOM_API_KEY
-if (!apiKey) {
-  fail(
-    'GITLOOM_API_KEY is not set.\n\n' +
-      '  Create a key at https://app.gitloom.cloud/ and pass it in the MCP server\n' +
-      '  config, e.g. {"env": {"GITLOOM_API_KEY": "gl_live_..."}}\n\n' +
-      '  For a memory on this machine instead, use the CLI: gitloom mcp',
-  )
-}
+const SETUP_HELP =
+  '  Create a key at https://app.gitloom.cloud/ and pass it in the MCP server\n' +
+  '  config, e.g. {"env": {"GITLOOM_API_KEY": "gl_live_..."}}\n\n' +
+  '  For a memory on this machine instead, use the CLI: gitloom mcp'
 
-const memory = new Gitloom({
-  apiKey,
-  baseUrl: process.env.GITLOOM_BASE_URL,
-  namespace: process.env.GITLOOM_NAMESPACE,
-})
+// The SDK rejects a missing, blank or malformed key. Thrown here, under
+// top-level await, that is a stack trace and no help text.
+let memory: Gitloom
+try {
+  memory = new Gitloom({
+    apiKey: process.env.GITLOOM_API_KEY,
+    baseUrl: process.env.GITLOOM_BASE_URL,
+    namespace: process.env.GITLOOM_NAMESPACE,
+  })
+} catch (err) {
+  if (err instanceof GitloomError) fail(`${err.message}\n\n${SETUP_HELP}`)
+  throw err
+}
 
 const server = new Server(
   { name: 'gitloom', version: __VERSION__ },
