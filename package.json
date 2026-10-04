@@ -34,7 +34,7 @@
     "access": "public"
   },
   "dependencies": {
-    "@gitloomhq/sdk": "^0.10.0",
+    "@gitloomhq/sdk": "0.10.0",
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {

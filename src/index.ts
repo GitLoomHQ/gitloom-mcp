@@ -2,7 +2,7 @@
  * MCP server for GitLoom Cloud.
  *
  * The local CLI already serves MCP against a git repository on your machine
- * (`gitloom mcp`). This is the other half: the same two tools, backed by a
+ * (`gitloom mcp`). This is the other half: three memory tools backed by a
  * hosted namespace, for a machine that should not hold the memory itself —
  * a shared agent, a container, someone else's laptop.
  *
@@ -18,7 +18,7 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js'
-import { Gitloom, mcpTools, runTool } from '@gitloomhq/sdk'
+import { Gitloom, mcpTools, runToolResult } from '@gitloomhq/sdk'
 
 // Substituted at build time from package.json; a host reports this when it
 // names the server, and a hand-kept copy drifts silently.
@@ -70,11 +70,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
   try {
-    const text = await runTool(memory, {
+    const result = await runToolResult(memory, {
       name: req.params.name,
       arguments: (req.params.arguments ?? {}) as Record<string, unknown>,
     })
-    return { content: [{ type: 'text' as const, text }] }
+    return { isError: result.isError, content: [{ type: 'text' as const, text: result.text }] }
   } catch (err) {
     // Reported as a tool RESULT, not a protocol error: the model should see
     // "that failed, try something else" and continue, where a protocol error
