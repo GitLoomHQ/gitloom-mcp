@@ -47,16 +47,17 @@ jobs:
           grep -q "\"$ver\"" dist/index.js \
             || { echo "::error::dist/index.js does not carry version $ver"; exit 1; }
 
-      # A missing, blank or malformed key must be refused on stderr with the
-      # setup help and a non-zero exit, never a stack trace. stdout carries
-      # protocol frames, so a stray line there corrupts the stream and a host
-      # reports it as the server dying.
+      # A missing, empty, blank or malformed key must be refused on stderr
+      # with the setup help and a non-zero exit, never a stack trace. stdout
+      # carries protocol frames, so a stray line there corrupts the stream and
+      # a host reports it as the server dying.
       - name: Refuses to start without a usable key
         run: |
           err=$(mktemp)
-          for k in unset blank control; do
+          for k in unset empty blank control; do
             case $k in
               unset)   run=(env -u GITLOOM_API_KEY) ;;
+              empty)   run=(env GITLOOM_API_KEY='') ;;
               blank)   run=(env GITLOOM_API_KEY=' ') ;;
               control) run=(env GITLOOM_API_KEY=$'a\r\nb') ;;
             esac
